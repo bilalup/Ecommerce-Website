@@ -81,7 +81,12 @@ export const Login = async (req, res) => {
 
 // Logout Endpoint (correct as is)
 export const Logout = async (req, res) => {
-    res.clearCookie("token");
+    res.clearCookie("token", {
+        httpOnly: true,
+        secure: true,         // must match the login cookie
+        sameSite: "none",     // must match too
+        path: "/",            // must match
+    });
     res.status(200).json({ success: true, message: "Logout successful" });
 }
 
