@@ -12,28 +12,30 @@ const Signup = () => {
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError('');
-  
-  if (password !== confirmPassword) {
-    setError('Passwords do not match');
-    return;
-  }
-  
-  try {
-    console.log('Attempting signup...'); // Debug log
-    await signup(name, email, password);
-    console.log('Signup successful, navigating...'); // Debug log
-    navigate('/');
-  } catch (err) {
-    console.error('Signup error:', err); // Detailed error logging
-    setError(
-      err.response?.data?.message || 
-      err.message || 
-      'Signup failed. Please try again later.'
-    );
-  }
-};
+    e.preventDefault();
+    setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    try {
+      const result = await signup(name, email, password);
+
+      // Redirect only if signup was successful
+      if (result?.user) {
+        navigate('/');
+      }
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+        err.message ||
+        'Signup failed. Please try again later.'
+      );
+    }
+  };
+
 
   return (
     <div className="pt-24 pb-16 min-h-screen bg-gray-50">

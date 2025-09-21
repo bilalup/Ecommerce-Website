@@ -5,10 +5,14 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.route.js';
 import productRoutes from './routes/product.route.js';
+import Parse from 'parse/node';
 
 dotenv.config();
 
 const app = express();
+
+
+
 
 app.use(cors({
     origin: process.env.CLIENT_URL,
@@ -18,6 +22,9 @@ app.use(cors({
 app.use(express.json()); // Parse JSON bodies (replaces body-parser)
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cookieParser()); // Parse cookies
+
+Parse.initialize("YOUR_APP_ID", "YOUR_JS_KEY", "MASTER_KEY");
+Parse.serverURL = "https://parseapi.back4app.com/";
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -29,5 +36,5 @@ mongoose.connect(process.env.MONGODB_URI)
   .catch((err) => console.error('MongoDB connection error:', err));
 
 // Start Server
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));

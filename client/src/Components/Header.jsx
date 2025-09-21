@@ -22,7 +22,7 @@ const Header = () => {
         <Link to="/" className="flex items-center">
           <img src={webLogo} alt="Siraj Store" className="w-16 h-16 mr-2" />
           <h1 className="text-xl md:text-2xl font-bold hidden sm:block">
-            Siraj Online Store
+            Bilal Online Store
           </h1>
         </Link>
 
