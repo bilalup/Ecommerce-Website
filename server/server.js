@@ -23,7 +23,7 @@ app.use(express.json()); // Parse JSON bodies (replaces body-parser)
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cookieParser()); // Parse cookies
 
-Parse.initialize("YOUR_APP_ID", "YOUR_JS_KEY", "MASTER_KEY");
+Parse.initialize("hXrWWSkGijWY0SNrPloF8wOBmcEUo8I2xbmLsJvl", "Ja7RzIGxGgNsP84m9A1r4LEcqKDnTcWBwiaI2o29", "pIUCz1imhwxWUv3xIKJY4HKldAP6ZgT2hEGs2AhB");
 Parse.serverURL = "https://parseapi.back4app.com/";
 
 // Routes
