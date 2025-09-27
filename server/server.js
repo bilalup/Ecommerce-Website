@@ -22,6 +22,12 @@ app.use(express.json()); // Parse JSON bodies (replaces body-parser)
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cookieParser()); // Parse cookies
 
+// check web health
+app.get('/health', (req, res) => {
+  res.send('server is running');
+}
+)
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
