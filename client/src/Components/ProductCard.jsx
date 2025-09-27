@@ -37,7 +37,7 @@ const ProductCard = ({ product }) => {
         <div className="mt-4 flex justify-between items-center">
           <button 
             onClick={() => addToCart(product)}
-            className="bg-purple-900 hover:bg-purple-800 text-white px-4 py-2 rounded-lg transition flex items-center"
+            className="bg-purple-900 hover:bg-purple-800 text-white px-4 py-2 rounded-lg transition flex items-center cursor-pointer"
           >
             Add to Cart
           </button>

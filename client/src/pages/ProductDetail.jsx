@@ -16,40 +16,43 @@ const ProductDetail = () => {
   const serverApi = import.meta.env.VITE_SERVER_API;
 
   useEffect(() => {
-  const fetchProduct = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get(`${serverApi}/products/getOneProduct/${id}`);
-      
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Failed to load product');
-      }
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
 
-      setProduct(response.data.product);
-      
-      // Only fetch related products if category exists
-      if (response.data.product.category) {
-        const relatedResponse = await axios.get(
-          `${serverApi}/products?category=${response.data.product.category}&limit=4`
-        );
-        setRelatedProducts(relatedResponse.data);
+        // Fetch the main product
+        const response = await axios.get(`${serverApi}/products/getOneProduct/${id}`);
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Failed to load product');
+        }
+        const mainProduct = response.data.product;
+        setProduct(mainProduct);
+
+        // Fetch all products for related products
+        if (mainProduct.category) {
+          const allProductsResponse = await axios.get(`${serverApi}/products/getAllProducts`);
+          const related = allProductsResponse.data.products
+            .filter(p => p.category === mainProduct.category && p._id !== mainProduct._id)
+            .slice(0, 4); // limit to 4 related products
+          setRelatedProducts(related);
+        }
+
+      } catch (err) {
+        setError(err.message || 'Failed to load product');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      setError(err.message || 'Failed to load product');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  fetchProduct();
-}, [id, serverApi]);
+    };
+
+    fetchProduct();
+  }, [id, serverApi]);
 
   const handleAddToCart = () => {
-    if (!selectedSize && product.sizes.length > 0) {
+    if (!selectedSize && product.sizes && product.sizes.length > 0) {
       alert('Please select a size');
       return;
     }
-    
+
     addToCart({
       ...product,
       size: selectedSize,
@@ -70,7 +73,7 @@ const ProductDetail = () => {
           <Link to={`/products/${product.category}`} className="hover:text-purple-700 capitalize"> {product.category}</Link> &gt; 
           <span> {product.name}</span>
         </div>
-        
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Product Images */}
           <div>
@@ -81,13 +84,12 @@ const ProductDetail = () => {
                 className="w-full h-96 object-contain"
               />
             </div>
-            
-            
           </div>
-          
+
           {/* Product Info */}
           <div>
             <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
+            
             <div className="flex items-center mb-4">
               <div className="flex text-yellow-400">
                 {[...Array(5)].map((_, i) => (
@@ -98,11 +100,10 @@ const ProductDetail = () => {
               </div>
               <span className="ml-2 text-gray-600">(24 reviews)</span>
             </div>
-            
+
             <div className="text-2xl font-bold text-purple-800 mb-6">${product.price}</div>
-            
             <p className="text-gray-700 mb-8">{product.description}</p>
-            
+
             {/* Size Selection */}
             {product.sizes && product.sizes.length > 0 && (
               <div className="mb-6">
@@ -124,7 +125,7 @@ const ProductDetail = () => {
                 </div>
               </div>
             )}
-            
+
             {/* Quantity */}
             <div className="mb-6">
               <h3 className="font-semibold mb-2">Quantity</h3>
@@ -146,24 +147,24 @@ const ProductDetail = () => {
                 </button>
               </div>
             </div>
-            
+
             {/* Stock Status */}
             <div className={`mb-6 ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
               {product.stock > 0 ? `${product.stock} items in stock` : 'Out of stock'}
             </div>
-            
+
             {/* Actions */}
             <div className="flex gap-4">
               <button
                 onClick={handleAddToCart}
                 disabled={product.stock <= 0}
-                className={`flex-1 bg-purple-700 hover:bg-purple-600 text-white py-3 px-6 rounded-lg font-semibold transition ${
+                className={`flex-1 bg-purple-700 hover:bg-purple-600 text-white py-3 px-6 rounded-lg font-semibold transition cursor-pointer ${
                   product.stock <= 0 ? 'opacity-50 cursor-not-allowed' : ''
                 }`}
               >
                 Add to Cart
               </button>
-              
+
               <button className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 px-6 rounded-lg font-semibold transition">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -173,7 +174,7 @@ const ProductDetail = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Product Details Tabs */}
         <div className="mt-16">
           <div className="border-b border-gray-200">
@@ -189,7 +190,7 @@ const ProductDetail = () => {
               </button>
             </nav>
           </div>
-          
+
           <div className="py-8">
             <h3 className="text-xl font-bold mb-4">Product Description</h3>
             <p className="text-gray-700">
@@ -197,14 +198,22 @@ const ProductDetail = () => {
             </p>
           </div>
         </div>
-        
+
         {/* Related Products */}
         <div className="mt-16">
           <h2 className="text-2xl font-bold mb-8">Related Products</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {relatedProducts.map(p => (
               <div key={p._id} className="bg-white rounded-lg shadow p-4">
-                <div className="bg-gray-200 border-2 border-dashed rounded-xl w-full h-48 mb-4" />
+                {/* Product Image */}
+                <div className="bg-gray-100 rounded-lg overflow-hidden w-full h-48 mb-4 flex items-center justify-center">
+                  <img 
+                    src={p.image} 
+                    alt={p.name} 
+                    className="object-contain w-full h-full"
+                  />
+                </div>
+
                 <h3 className="font-semibold">{p.name}</h3>
                 <div className="text-purple-700 font-bold">${p.price}</div>
                 <Link 
