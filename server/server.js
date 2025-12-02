@@ -31,6 +31,13 @@ app.get('/', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    message: 'Your API is running',
+    timestamp: new Date().toISOString()
+  });
+});
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI)
