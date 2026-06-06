@@ -6,25 +6,68 @@ function AddProduct() {
     const serverApi = import.meta.env.VITE_SERVER_API;
     const navigate = useNavigate();
     const [loading, setLoading] = useState(false);
+
     const [formData, setFormData] = useState({
         title: "",
         description: "",
         price: "",
+        discountPrice: "",
         category: "",
-        stock: ""
+        brand: "",
     });
-    const [image, setImage] = useState(null);
+
+    const [images, setImages] = useState([]);
+    const [variants, setVariants] = useState([]);
+
+    const categories = ["jeans", "t-shirts", "shoes"];
+
+    const variantPresets = {
+        "t-shirts": [
+            { color: "black", size: "S", stock: 10 },
+            { color: "black", size: "M", stock: 10 },
+            { color: "black", size: "L", stock: 10 },
+            { color: "black", size: "XL", stock: 10 },
+        ],
+        jeans: [
+            { color: "blue", size: "28", stock: 10 },
+            { color: "blue", size: "30", stock: 10 },
+            { color: "blue", size: "32", stock: 10 },
+            { color: "blue", size: "34", stock: 10 },
+        ],
+        shoes: [
+            { color: "black", size: "39", stock: 10 },
+            { color: "black", size: "40", stock: 10 },
+            { color: "black", size: "41", stock: 10 },
+            { color: "black", size: "42", stock: 10 },
+        ],
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData({
-            ...formData,
-            [name]: value
-        });
+
+        setFormData({ ...formData, [name]: value });
+
+        if (name === "category") {
+            setVariants(variantPresets[value] || []);
+        }
     };
 
-    const handleImageChange = (e) => {
-        setImage(e.target.files[0]);
+    const handleImages = (e) => {
+        setImages([...e.target.files]);
+    };
+
+    const handleVariantChange = (index, field, value) => {
+        const updated = [...variants];
+        updated[index][field] = value;
+        setVariants(updated);
+    };
+
+    const addVariant = () => {
+        setVariants([...variants, { color: "", size: "", stock: 0 }]);
+    };
+
+    const removeVariant = (index) => {
+        setVariants(variants.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async (e) => {
@@ -32,120 +75,123 @@ function AddProduct() {
         setLoading(true);
 
         try {
-            const formDataToSend = new FormData();
-            formDataToSend.append("title", formData.title);
-            formDataToSend.append("description", formData.description);
-            formDataToSend.append("price", formData.price);
-            formDataToSend.append("category", formData.category);
-            formDataToSend.append("stock", formData.stock);
-            formDataToSend.append("image", image);
+            const data = new FormData();
 
-            const response = await axios.post(`${serverApi}/products/addProduct`, formDataToSend, {
-                headers: {
-                    "Content-Type": "multipart/form-data"
-                }
+            data.append("title", formData.title);
+            data.append("description", formData.description);
+            data.append("price", formData.price);
+            data.append("discountPrice", formData.discountPrice);
+            data.append("category", formData.category);
+            data.append("brand", formData.brand);
+
+            data.append("variants", JSON.stringify(variants));
+
+            images.forEach((img) => {
+                data.append("images", img);
             });
 
-            if (response.data.success) {
+            const res = await axios.post(
+                `${serverApi}/products/addProduct`,
+                data,
+                { headers: { "Content-Type": "multipart/form-data" } }
+            );
+
+            if (res.data.success) {
                 navigate("/admin/products");
             }
         } catch (error) {
-            console.error("Error adding product:", error);
+            console.error(error);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="container mx-auto px-4 py-8 mt-20 justify-center">
-            <h1 className="text-2xl font-bold mb-6">Add New Product</h1>
-            
-            <form onSubmit={handleSubmit} className="max-w-lg">
-                <div className="space-y-4">
-                    {/* Title */}
-                    <div>
-                        <label className="block mb-1">Product Title *</label>
-                        <input
-                            type="text"
-                            name="title"
-                            value={formData.title}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border rounded"
-                            required
-                        />
-                    </div>
+        <div className="container mx-auto px-4 py-8 mt-20">
+            <h1 className="text-2xl font-bold mb-6">Add Product</h1>
 
-                    {/* Description */}
-                    <div>
-                        <label className="block mb-1">Description</label>
-                        <textarea
-                            name="description"
-                            value={formData.description}
-                            onChange={handleChange}
-                            rows="3"
-                            className="w-full px-3 py-2 border rounded"
-                        />
-                    </div>
+            <form onSubmit={handleSubmit} className="max-w-xl space-y-4">
 
-                    {/* Price */}
-                    <div>
-                        <label className="block mb-1">Price *</label>
-                        <input
-                            type="number"
-                            name="price"
-                            value={formData.price}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border rounded"
-                            required
-                        />
-                    </div>
+                <input name="title" placeholder="Title" onChange={handleChange} className="w-full border p-2" />
+                <textarea name="description" placeholder="Description" onChange={handleChange} className="w-full border p-2" />
 
-                    {/* Category */}
-                    <div>
-                        <label className="block mb-1">Category *</label>
-                        <input
-                            type="text"
-                            name="category"
-                            value={formData.category}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border rounded"
-                        />
-                    </div>
+                <input type="number" name="price" placeholder="Price" onChange={handleChange} className="w-full border p-2" />
 
-                    {/* Stock */}
-                    <div>
-                        <label className="block mb-1">Stock Quantity *</label>
-                        <input
-                            type="number"
-                            name="stock"
-                            value={formData.stock}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border rounded"
-                        />
-                    </div>
+                <input type="number" name="discountPrice" placeholder="Discount Price" onChange={handleChange} className="w-full border p-2" />
 
-                    {/* Image */}
-                    <div>
-                        <label className="block mb-1">Product Image *</label>
-                        <input
-                            type="file"
-                            onChange={handleImageChange}
-                            className="w-full px-3 py-2 border rounded"
-                            required
-                        />
-                    </div>
+                <input name="brand" placeholder="Brand" onChange={handleChange} className="w-full border p-2" />
 
-                    {/* Submit Button */}
-                    <div>
-                        <button
-                            type="submit"
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            disabled={loading}
-                        >
-                            {loading ? "Adding..." : "Add Product"}
-                        </button>
+                <select name="category" onChange={handleChange} className="w-full border p-2">
+                    <option value="">Select Category</option>
+                    {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                            {cat}
+                        </option>
+                    ))}
+                </select>
+
+                {/* Images Upload */}
+                <div>
+                    <h3 className="font-bold mb-2">Images</h3>
+
+                    <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImages}
+                        className="w-full border p-2"
+                    />
+
+                    {/* Preview */}
+                    <div className="flex gap-2 flex-wrap mt-3">
+                        {images.map((img, i) => (
+                            <div key={i} className="relative">
+                                <img
+                                    src={URL.createObjectURL(img)}
+                                    alt="preview"
+                                    className="w-20 h-20 object-cover rounded border"
+                                />
+
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setImages(images.filter((_, index) => index !== i))
+                                    }
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-5 h-5"
+                                >
+                                    x
+                                </button>
+                            </div>
+                        ))}
                     </div>
                 </div>
+
+                <div>
+                    <h3 className="font-bold mb-2">Variants</h3>
+
+                    {variants.map((v, i) => (
+                        <div key={i} className="flex gap-2 mb-2">
+
+                            <input value={v.color} onChange={(e) => handleVariantChange(i, "color", e.target.value)} className="border p-2" />
+
+                            <input value={v.size} onChange={(e) => handleVariantChange(i, "size", e.target.value)} className="border p-2" />
+
+                            <input type="number" value={v.stock} onChange={(e) => handleVariantChange(i, "stock", e.target.value)} className="border p-2 w-20" />
+
+                            <button type="button" onClick={() => removeVariant(i)} className="text-red-500">
+                                X
+                            </button>
+                        </div>
+                    ))}
+
+                    <button type="button" onClick={addVariant} className="text-blue-600">
+                        + Add Variant
+                    </button>
+                </div>
+
+                <button type="submit" disabled={loading} className="bg-blue-600 text-white px-4 py-2">
+                    {loading ? "Adding..." : "Add Product"}
+                </button>
             </form>
         </div>
     );

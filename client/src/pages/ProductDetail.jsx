@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useCartStore } from '../store/store';
 import axios from 'axios';
@@ -7,12 +7,14 @@ const ProductDetail = () => {
   const { id } = useParams();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [added, setAdded] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedSize, setSelectedSize] = useState('');
+
+  const [selectedVariant, setSelectedVariant] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [relatedProducts, setRelatedProducts] = useState([]);
+
   const { addToCart } = useCartStore();
-  
   const serverApi = import.meta.env.VITE_SERVER_API;
 
   useEffect(() => {
@@ -20,20 +22,18 @@ const ProductDetail = () => {
       try {
         setLoading(true);
 
-        // Fetch the main product
-        const response = await axios.get(`${serverApi}/products/getOneProduct/${id}`);
-        if (!response.data.success) {
-          throw new Error(response.data.message || 'Failed to load product');
-        }
-        const mainProduct = response.data.product;
+        const res = await axios.get(`${serverApi}/products/getOneProduct/${id}`);
+        const mainProduct = res.data.product;
+
         setProduct(mainProduct);
 
-        // Fetch all products for related products
-        if (mainProduct.category) {
-          const allProductsResponse = await axios.get(`${serverApi}/products/getAllProducts`);
-          const related = allProductsResponse.data.products
+        if (mainProduct?.category) {
+          const all = await axios.get(`${serverApi}/products/getAllProducts`);
+
+          const related = all.data.products
             .filter(p => p.category === mainProduct.category && p._id !== mainProduct._id)
-            .slice(0, 4); // limit to 4 related products
+            .slice(0, 4);
+
           setRelatedProducts(related);
         }
 
@@ -45,102 +45,128 @@ const ProductDetail = () => {
     };
 
     fetchProduct();
-  }, [id, serverApi]);
+  }, [id]);
 
+  // ✅ total stock from variants
+  const totalStock = useMemo(() => {
+    if (!product?.variants) return 0;
+    return product.variants.reduce(
+      (sum, v) => sum + (Number(v.stock) || 0),
+      0
+    );
+  }, [product]);
+
+  // ✅ FIXED ADD TO CART
   const handleAddToCart = () => {
-    if (!selectedSize && product.sizes && product.sizes.length > 0) {
-      alert('Please select a size');
+    if (product?.variants?.length && !selectedVariant) {
+      alert("Please select a variant");
       return;
     }
 
     addToCart({
-      ...product,
-      size: selectedSize,
-      quantity
+      _id: product._id,
+      title: product.title,
+      price: product.price,
+      images: product.images,
+      variant: selectedVariant,
+      quantity: Number(quantity)
     });
+
+    setAdded(true);
+    setTimeout(() => setAdded(false), 800);
   };
 
-  if (loading) return <div className="pt-24 pb-16 text-center">Loading product...</div>;
-  if (error) return <div className="pt-24 pb-16 text-center text-red-500">{error}</div>;
-  if (!product) return <div className="pt-24 pb-16 text-center">Product not found</div>;
+  if (loading) return <div className="pt-24 text-center">Loading...</div>;
+  if (error) return <div className="pt-24 text-center text-red-500">{error}</div>;
+  if (!product) return <div className="pt-24 text-center">Product not found</div>;
 
   return (
     <div className="pt-24 pb-16">
       <div className="container mx-auto px-4">
-        {/* Breadcrumb */}
-        <div className="text-sm text-gray-600 mb-6">
-          <Link to="/" className="hover:text-purple-700">Home</Link> &gt; 
-          <Link to={`/products/${product.category}`} className="hover:text-purple-700 capitalize"> {product.category}</Link> &gt; 
-          <span> {product.name}</span>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images */}
+        <div className="grid lg:grid-cols-2 gap-12">
+
+          {/* IMAGE */}
           <div>
-            <div className="bg-gray-100 rounded-lg p-8 mb-4">
-              <img 
-                src={product.image} 
-                alt={product.name} 
+
+            <div className="bg-gray-100 rounded-lg p-6">
+              <img
+                src={product.images?.[0]}
                 className="w-full h-96 object-contain"
+                alt={product.title}
               />
             </div>
-          </div>
 
-          {/* Product Info */}
-          <div>
-            <h1 className="text-3xl font-bold mb-2">{product.name}</h1>
-            
-            <div className="flex items-center mb-4">
-              <div className="flex text-yellow-400">
-                {[...Array(5)].map((_, i) => (
-                  <svg key={i} xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </div>
-              <span className="ml-2 text-gray-600">(24 reviews)</span>
+            {/* thumbnails */}
+            <div className="flex gap-2 mt-4">
+              {product.images?.map((img, i) => (
+                <img
+                  key={i}
+                  src={img}
+                  className="w-16 h-16 object-cover border rounded cursor-pointer hover:scale-105"
+                  onClick={() => {
+                    const newArr = [...product.images];
+                    newArr.unshift(newArr.splice(i, 1)[0]);
+                    setProduct({ ...product, images: newArr });
+                  }}
+                />
+              ))}
             </div>
 
-            <div className="text-2xl font-bold text-purple-800 mb-6">${product.price}</div>
-            <p className="text-gray-700 mb-8">{product.description}</p>
+          </div>
 
-            {/* Size Selection */}
-            {product.sizes && product.sizes.length > 0 && (
-              <div className="mb-6">
-                <h3 className="font-semibold mb-2">Size</h3>
+          {/* INFO */}
+          <div>
+
+            <h1 className="text-3xl font-bold">{product.title}</h1>
+
+            <div className="text-2xl text-purple-700 font-bold mt-2">
+              ${product.price}
+            </div>
+
+            <p className="mt-4 text-gray-700">
+              {product.description}
+            </p>
+
+            {/* VARIANTS */}
+            {product.variants?.length > 0 && (
+              <div className="mt-6">
+                <h3 className="font-semibold mb-2">Variants</h3>
+
                 <div className="flex flex-wrap gap-2">
-                  {product.sizes.map(size => (
+                  {product.variants.map((v, i) => (
                     <button
-                      key={size}
-                      className={`border px-4 py-2 rounded ${
-                        selectedSize === size 
-                          ? 'bg-purple-700 text-white border-purple-700' 
-                          : 'border-gray-300'
+                      key={i}
+                      onClick={() => setSelectedVariant(v)}
+                      className={`border px-3 py-2 rounded transition ${
+                        selectedVariant === v
+                          ? 'bg-purple-700 text-white'
+                          : ''
                       }`}
-                      onClick={() => setSelectedSize(size)}
                     >
-                      {size}
+                      {v.color} - {v.size} ({v.stock})
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Quantity */}
-            <div className="mb-6">
-              <h3 className="font-semibold mb-2">Quantity</h3>
-              <div className="flex items-center">
-                <button 
-                  className="border border-gray-300 rounded-l px-4 py-2"
+            {/* QUANTITY */}
+            <div className="mt-6">
+              <h3 className="font-semibold">Quantity</h3>
+
+              <div className="flex items-center mt-2 gap-3">
+                <button
+                  className="px-3 py-1 border"
                   onClick={() => setQuantity(q => Math.max(1, q - 1))}
                 >
                   -
                 </button>
-                <div className="border-t border-b border-gray-300 px-6 py-2">
-                  {quantity}
-                </div>
-                <button 
-                  className="border border-gray-300 rounded-r px-4 py-2"
+
+                <span>{quantity}</span>
+
+                <button
+                  className="px-3 py-1 border"
                   onClick={() => setQuantity(q => q + 1)}
                 >
                   +
@@ -148,84 +174,43 @@ const ProductDetail = () => {
               </div>
             </div>
 
-            {/* Stock Status */}
-            <div className={`mb-6 ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {product.stock > 0 ? `${product.stock} items in stock` : 'Out of stock'}
+            {/* STOCK */}
+            <div className="mt-4">
+              {totalStock > 0
+                ? `${totalStock} items in stock`
+                : 'Out of stock'}
             </div>
 
-            {/* Actions */}
-            <div className="flex gap-4">
-              <button
-                onClick={handleAddToCart}
-                disabled={product.stock <= 0}
-                className={`flex-1 bg-purple-700 hover:bg-purple-600 text-white py-3 px-6 rounded-lg font-semibold transition cursor-pointer ${
-                  product.stock <= 0 ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
-              >
-                Add to Cart
-              </button>
+            {/* BUTTON */}
+            <button
+              onClick={handleAddToCart}
+              disabled={totalStock === 0}
+              className="mt-6 bg-purple-700 text-white px-6 py-3 rounded w-full"
+            >
+              {added ? "Added ✓" : "Add to Cart"}
+            </button>
 
-              <button className="bg-gray-200 hover:bg-gray-300 text-gray-800 py-3 px-6 rounded-lg font-semibold transition">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                </svg>
-                Wishlist
-              </button>
-            </div>
           </div>
         </div>
 
-        {/* Product Details Tabs */}
+        {/* RELATED */}
         <div className="mt-16">
-          <div className="border-b border-gray-200">
-            <nav className="flex space-x-8">
-              <button className="py-4 px-1 font-medium text-gray-500 hover:text-purple-700 border-b-2 border-transparent hover:border-purple-700">
-                Description
-              </button>
-              <button className="py-4 px-1 font-medium text-gray-500 hover:text-purple-700 border-b-2 border-transparent hover:border-purple-700">
-                Specifications
-              </button>
-              <button className="py-4 px-1 font-medium text-gray-500 hover:text-purple-700 border-b-2 border-transparent hover:border-purple-700">
-                Reviews (24)
-              </button>
-            </nav>
-          </div>
+          <h2 className="text-xl font-bold mb-6">Related Products</h2>
 
-          <div className="py-8">
-            <h3 className="text-xl font-bold mb-4">Product Description</h3>
-            <p className="text-gray-700">
-              {product.fullDescription || "No additional description available."}
-            </p>
-          </div>
-        </div>
-
-        {/* Related Products */}
-        <div className="mt-16">
-          <h2 className="text-2xl font-bold mb-8">Related Products</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid md:grid-cols-4 gap-4">
             {relatedProducts.map(p => (
-              <div key={p._id} className="bg-white rounded-lg shadow p-4">
-                {/* Product Image */}
-                <div className="bg-gray-100 rounded-lg overflow-hidden w-full h-48 mb-4 flex items-center justify-center">
-                  <img 
-                    src={p.image} 
-                    alt={p.name} 
-                    className="object-contain w-full h-full"
-                  />
-                </div>
-
-                <h3 className="font-semibold">{p.name}</h3>
-                <div className="text-purple-700 font-bold">${p.price}</div>
-                <Link 
-                  to={`/product/${p._id}`}
-                  className="mt-2 inline-block text-purple-700 hover:text-purple-900 font-medium"
-                >
-                  View Product
-                </Link>
-              </div>
+              <Link key={p._id} to={`/product/${p._id}`} className="border p-3">
+                <img
+                  src={p.images?.[0]}
+                  className="h-40 w-full object-cover"
+                />
+                <div className="font-semibold">{p.title}</div>
+                <div>${p.price}</div>
+              </Link>
             ))}
           </div>
         </div>
+
       </div>
     </div>
   );

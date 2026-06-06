@@ -5,7 +5,7 @@ import { verifyAdminToken } from '../middleware/verifyAdminToken.js';
 
 const router = express.Router();
 
-router.post('/addProduct', upload.single('image'), verifyAdminToken , addProduct);
+router.post('/addProduct', upload.array('images', 10), verifyAdminToken, addProduct );
 
 // get all products
 router.get('/getAllProducts', getAllProducts);
@@ -14,7 +14,7 @@ router.get('/getAllProducts', getAllProducts);
 router.get('/getOneProduct/:id', GetOneProduct);
 
 // Edit 
-router.put('/editProduct/:id', upload.single('image'), verifyAdminToken, EditProduct);
+router.put( '/editProduct/:id', upload.array('images', 10), verifyAdminToken, EditProduct );
 
 // Delete Product
 router.delete('/deleteProduct/:id', verifyAdminToken, DeleteProduct);

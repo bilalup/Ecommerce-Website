@@ -1,321 +1,339 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
-import { FiSave, FiArrowLeft } from "react-icons/fi";
+import { FiSave, FiArrowLeft, FiPlus } from "react-icons/fi";
 
 function EditProduct() {
     const serverApi = import.meta.env.VITE_SERVER_API;
     const { id } = useParams();
     const navigate = useNavigate();
+
     const [loading, setLoading] = useState(true);
+
     const [formData, setFormData] = useState({
         title: "",
         description: "",
-        price: 0,
+        price: "",
+        discountPrice: "",
         category: "",
-        image: "",
-        sizes: [],
-        colors: [],
-        stock: 0
+        brand: "",
     });
-    const [categories, setCategories] = useState([]);
-    const [imagePreview, setImagePreview] = useState("");
 
-    // Available options
-    const sizeOptions = ["XS", "S", "M", "L", "XL", "XXL"];
-    const colorOptions = ["#000000", "#FFFFFF", "#FF0000", "#00FF00", "#0000FF", "#FFFF00"];
+    const [images, setImages] = useState([]);
+    const [existingImages, setExistingImages] = useState([]);
+    const [variants, setVariants] = useState([]);
+
+    const categories = ["jeans", "t-shirts", "shoes"];
+
+    const variantPresets = {
+        "t-shirts": [
+            { color: "black", size: "S", stock: 10 },
+            { color: "black", size: "M", stock: 10 },
+            { color: "black", size: "L", stock: 10 },
+            { color: "black", size: "XL", stock: 10 },
+        ],
+        jeans: [
+            { color: "blue", size: "28", stock: 10 },
+            { color: "blue", size: "30", stock: 10 },
+            { color: "blue", size: "32", stock: 10 },
+            { color: "blue", size: "34", stock: 10 },
+        ],
+        shoes: [
+            { color: "black", size: "39", stock: 10 },
+            { color: "black", size: "40", stock: 10 },
+            { color: "black", size: "41", stock: 10 },
+            { color: "black", size: "42", stock: 10 },
+        ],
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchProduct = async () => {
             try {
-                // Fetch product data
-                const productRes = await axios.get(`${serverApi}/products/getProduct/${id}`);
-                setFormData(productRes.data.product);
-                setImagePreview(productRes.data.product.image);
+                const res = await axios.get(
+                    `${serverApi}/products/getOneProduct/${id}`
+                );
 
-                // Fetch categories
-                const categoriesRes = await axios.get(`${serverApi}/categories`);
-                setCategories(categoriesRes.data.categories);
+                const p = res.data.product;
+
+                setFormData({
+                    title: p.title || "",
+                    description: p.description || "",
+                    price: p.price || "",
+                    discountPrice: p.discountPrice || "",
+                    category: p.category || "",
+                    brand: p.brand || "",
+                    stock: p.stock || "",
+                });
+
+                setExistingImages(p.images || []);
+                setVariants(p.variants || []);
             } catch (err) {
-                console.error("Error fetching data:", err);
+                console.error(err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchData();
-        // eslint-disable-next-line
+
+        fetchProduct();
     }, [id]);
 
     const handleChange = (e) => {
         const { name, value } = e.target;
-        setFormData({
-            ...formData,
-            [name]: value
-        });
-    };
 
-    const handleImageChange = (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                setImagePreview(reader.result);
-            };
-            reader.readAsDataURL(file);
-            setFormData({
-                ...formData,
-                image: file
-            });
+        setFormData((prev) => ({
+            ...prev,
+            [name]:
+                name === "price" ||
+                name === "discountPrice" ||
+                name === "stock"
+                    ? value === ""
+                        ? ""
+                        : Number(value)
+                    : value,
+        }));
+
+        if (name === "category") {
+            setVariants(variantPresets[value] || []);
         }
     };
 
-    const handleSizeChange = (size) => {
-        setFormData({
-            ...formData,
-            sizes: formData.sizes.includes(size)
-                ? formData.sizes.filter(s => s !== size)
-                : [...formData.sizes, size]
-        });
+    const handleImages = (e) => {
+        setImages([...e.target.files]);
     };
 
-    const handleColorChange = (color) => {
-        setFormData({
-            ...formData,
-            colors: formData.colors.includes(color)
-                ? formData.colors.filter(c => c !== color)
-                : [...formData.colors, color]
-        });
+    const removeExistingImage = (index) => {
+        setExistingImages(existingImages.filter((_, i) => i !== index));
+    };
+
+    const handleVariantChange = (index, field, value) => {
+        const updated = [...variants];
+        updated[index][field] = value;
+        setVariants(updated);
+    };
+
+    const addVariant = () => {
+        setVariants([...variants, { color: "", size: "", stock: 0 }]);
+    };
+
+    const removeVariant = (index) => {
+        setVariants(variants.filter((_, i) => i !== index));
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        try {
-            setLoading(true);
-            
-            // If image is a file, upload it first
-            let imageUrl = formData.image;
-            if (typeof formData.image !== "string") {
-                const formDataImg = new FormData();
-                formDataImg.append("image", formData.image);
-                const uploadRes = await axios.post(`${serverApi}/upload`, formDataImg);
-                imageUrl = uploadRes.data.url;
-            }
+        setLoading(true);
 
-            // Update product with the new data
-            await axios.put(`${serverApi}/products/updateProduct/${id}`, {
-                ...formData,
-                image: imageUrl
+        try {
+            const data = new FormData();
+
+            data.append("title", formData.title);
+            data.append("description", formData.description);
+            data.append("price", formData.price);
+            data.append("discountPrice", formData.discountPrice);
+            data.append("category", formData.category);
+            data.append("brand", formData.brand);
+
+            data.append("variants", JSON.stringify(variants));
+
+            // keep existing images (important)
+            data.append("existingImages", JSON.stringify(existingImages));
+
+            // new uploaded images
+            images.forEach((img) => {
+                data.append("images", img);
             });
+
+            await axios.put(
+                `${serverApi}/products/editProduct/${id}`,
+                data,
+                {
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                }
+            );
 
             navigate("/admin/products");
         } catch (err) {
-            console.error("Error updating product:", err);
+            console.error("Update error:", err);
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading && !formData.title) {
+    if (loading) {
         return (
             <div className="flex justify-center items-center h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-purple-700"></div>
+                <div className="animate-spin h-12 w-12 border-4 border-purple-700 border-t-transparent rounded-full"></div>
             </div>
         );
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="mb-6">
+        <div className="container mx-auto px-4 py-8 mt-20">
+
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6">
                 <button
                     onClick={() => navigate("/admin/products")}
-                    className="flex items-center gap-2 text-purple-700 hover:text-purple-900"
+                    className="flex items-center gap-2 text-gray-600 hover:text-black"
                 >
-                    <FiArrowLeft /> Back to Products
+                    <FiArrowLeft /> Back
                 </button>
-                <h1 className="text-3xl font-bold text-gray-800 mt-4">Edit Product</h1>
+
+                <h1 className="text-2xl font-bold">Edit Product</h1>
             </div>
 
-            <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Left Column */}
-                    <div>
-                        {/* Product Image */}
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
-                            <div className="flex items-center gap-4">
-                                <div className="w-32 h-32 rounded-md overflow-hidden bg-gray-100">
-                                    {imagePreview ? (
-                                        <img
-                                            src={imagePreview}
-                                            alt="Preview"
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
-                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                            No image
-                                        </div>
-                                    )}
-                                </div>
-                                <div>
-                                    <input
-                                        type="file"
-                                        id="image"
-                                        onChange={handleImageChange}
-                                        className="hidden"
-                                    />
-                                    <label
-                                        htmlFor="image"
-                                        className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-md cursor-pointer transition-colors"
-                                    >
-                                        Change Image
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
+            <form onSubmit={handleSubmit} className="space-y-6">
 
-                        {/* Basic Info */}
-                        <div className="space-y-4">
-                            <div>
-                                <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Product Name
-                                </label>
-                                <input
-                                    type="text"
-                                    id="title"
-                                    name="title"
-                                    value={formData.title}
-                                    onChange={handleChange}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    required
+                {/* Basic Fields */}
+                <input
+                    name="title"
+                    value={formData.title}
+                    onChange={handleChange}
+                    placeholder="Title"
+                    className="w-full border p-2"
+                />
+
+                <textarea
+                    name="description"
+                    value={formData.description}
+                    onChange={handleChange}
+                    placeholder="Description"
+                    className="w-full border p-2"
+                />
+
+                <input
+                    name="price"
+                    value={formData.price}
+                    onChange={handleChange}
+                    placeholder="Price"
+                    className="w-full border p-2"
+                />
+
+                <input
+                    name="discountPrice"
+                    value={formData.discountPrice}
+                    onChange={handleChange}
+                    placeholder="Discount Price"
+                    className="w-full border p-2"
+                />
+
+                <input
+                    name="brand"
+                    value={formData.brand}
+                    onChange={handleChange}
+                    placeholder="Brand"
+                    className="w-full border p-2"
+                />
+
+                <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleChange}
+                    className="w-full border p-2"
+                >
+                    <option value="">Select Category</option>
+                    {categories.map((cat) => (
+                        <option key={cat} value={cat}>
+                            {cat}
+                        </option>
+                    ))}
+                </select>
+
+                {/* EXISTING IMAGES */}
+                <div>
+                    <h3 className="font-bold mb-2">Existing Images</h3>
+
+                    <div className="flex gap-3 flex-wrap">
+                        {existingImages.map((img, i) => (
+                            <div key={i} className="relative">
+                                <img
+                                    src={img}
+                                    className="w-20 h-20 object-cover rounded"
                                 />
-                            </div>
-
-                            <div>
-                                <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Price ($)
-                                </label>
-                                <input
-                                    type="number"
-                                    id="price"
-                                    name="price"
-                                    value={formData.price}
-                                    onChange={handleChange}
-                                    min="0"
-                                    step="0.01"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    required
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Category
-                                </label>
-                                <select
-                                    id="category"
-                                    name="category"
-                                    value={formData.category}
-                                    onChange={handleChange}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                                <button
+                                    type="button"
+                                    onClick={() => removeExistingImage(i)}
+                                    className="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full px-2"
                                 >
-                                    <option value="">Select a category</option>
-                                    {categories.map((category) => (
-                                        <option key={category._id} value={category.name}>
-                                            {category.name}
-                                        </option>
-                                    ))}
-                                </select>
+                                    x
+                                </button>
                             </div>
+                        ))}
+                    </div>
+                </div>
 
-                            <div>
-                                <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Stock Quantity
-                                </label>
-                                <input
-                                    type="number"
-                                    id="stock"
-                                    name="stock"
-                                    value={formData.stock}
-                                    onChange={handleChange}
-                                    min="0"
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
-                                    required
-                                />
-                            </div>
-                        </div>
+                {/* NEW IMAGES */}
+                <input
+                    type="file"
+                    multiple
+                    onChange={handleImages}
+                    className="w-full border p-2"
+                />
+
+                {/* VARIANTS */}
+                <div>
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-bold">Variants</h3>
+
+                        <button
+                            type="button"
+                            onClick={addVariant}
+                            className="text-blue-600 flex items-center gap-1"
+                        >
+                            <FiPlus /> Add
+                        </button>
                     </div>
 
-                    {/* Right Column */}
-                    <div>
-                        {/* Description */}
-                        <div className="mb-6">
-                            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-                                Description
-                            </label>
-                            <textarea
-                                id="description"
-                                name="description"
-                                value={formData.description}
-                                onChange={handleChange}
-                                rows="5"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    {variants.map((v, i) => (
+                        <div key={i} className="flex gap-2 mb-2">
+                            <input
+                                placeholder="Color"
+                                value={v.color}
+                                onChange={(e) =>
+                                    handleVariantChange(i, "color", e.target.value)
+                                }
+                                className="border p-2"
                             />
-                        </div>
 
-                        {/* Sizes */}
-                        <div className="mb-6">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Available Sizes</label>
-                            <div className="flex flex-wrap gap-2">
-                                {sizeOptions.map((size) => (
-                                    <button
-                                        key={size}
-                                        type="button"
-                                        onClick={() => handleSizeChange(size)}
-                                        className={`px-3 py-1 border rounded-md ${
-                                            formData.sizes.includes(size)
-                                                ? "bg-purple-700 text-white border-purple-700"
-                                                : "border-gray-300"
-                                        }`}
-                                    >
-                                        {size}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                            <input
+                                placeholder="Size"
+                                value={v.size}
+                                onChange={(e) =>
+                                    handleVariantChange(i, "size", e.target.value)
+                                }
+                                className="border p-2"
+                            />
 
-                        {/* Colors */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">Available Colors</label>
-                            <div className="flex flex-wrap gap-3">
-                                {colorOptions.map((color) => (
-                                    <button
-                                        key={color}
-                                        type="button"
-                                        onClick={() => handleColorChange(color)}
-                                        className={`w-8 h-8 rounded-full border-2 ${
-                                            formData.colors.includes(color)
-                                                ? "ring-2 ring-offset-2 ring-purple-500"
-                                                : "border-gray-300"
-                                        }`}
-                                        style={{ backgroundColor: color }}
-                                        title={color}
-                                    />
-                                ))}
-                            </div>
+                            <input
+                                type="number"
+                                placeholder="Stock"
+                                value={v.stock}
+                                onChange={(e) =>
+                                    handleVariantChange(i, "stock", e.target.value)
+                                }
+                                className="border p-2 w-24"
+                            />
+
+                            <button
+                                type="button"
+                                onClick={() => removeVariant(i)}
+                                className="text-red-500"
+                            >
+                                X
+                            </button>
                         </div>
-                    </div>
+                    ))}
                 </div>
 
-                {/* Submit Button */}
-                <div className="mt-8 flex justify-end">
-                    <button
-                        type="submit"
-                        className="px-6 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-md flex items-center gap-2 transition-colors"
-                        disabled={loading}
-                    >
-                        <FiSave /> {loading ? "Saving..." : "Save Changes"}
-                    </button>
-                </div>
+                {/* SUBMIT */}
+                <button
+                    type="submit"
+                    className="bg-purple-700 text-white px-6 py-2 flex items-center gap-2"
+                >
+                    <FiSave /> Save Changes
+                </button>
             </form>
         </div>
     );

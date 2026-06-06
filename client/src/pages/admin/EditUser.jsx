@@ -49,7 +49,8 @@ function EditUser() {
     try {
       await axios.put(`${serverApi}/auth/updateUserProfile/${id}`, {
         name: formData.name,
-        email: formData.email
+        email: formData.email,
+        isAdmin: formData.isAdmin
       });
       navigate("/admin/users");
     } catch (err) {

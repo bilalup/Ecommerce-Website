@@ -114,7 +114,7 @@ export const GetOneUser = async (req, res) => {
     }
 }
 
-// update User Profile
+// update User Profile with role update
 export const updateUserProfile = async (req, res) => {
     const { id } = req.params;
     const { name, email, isAdmin } = req.body;
@@ -127,9 +127,9 @@ export const updateUserProfile = async (req, res) => {
             return res.status(404).json({ success: false, message: "User not found" });
         }
 
-        if (name) user.name = name;
-        if (email) user.email = email;
-        if (isAdmin) user.isAdmin = isAdmin;
+        if (name !== undefined) user.name = name;
+        if (email !== undefined) user.email = email;
+        if (isAdmin !== undefined) user.isAdmin = isAdmin;
         await user.save();
         res.status(200).json({ success: true, message: "User profile updated successfully", user });
     } catch (error) {

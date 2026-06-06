@@ -29,7 +29,7 @@ function AdminUsers() {
 
     const handleDelete = async () => {
         try {
-            await axios.delete(`${serverApi}/users/deleteUser/${deleteModal.userId}`);
+            await axios.delete(`${serverApi}/auth/deleteUser/${deleteModal.userId}`);
             setUsers(users.filter(user => user._id !== deleteModal.userId));
             setDeleteModal({ open: false, userId: null });
         } catch (err) {

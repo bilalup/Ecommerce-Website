@@ -3,14 +3,23 @@ import { useCartStore } from '../store/store';
 
 const ProductCard = ({ product }) => {
   const { addToCart } = useCartStore();
+
+  const totalStock = product.variants?.reduce(
+    (sum, v) => sum + (Number(v.stock) || 0),
+    0
+  );
   
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300">
       <Link to={`/product/${product._id}`}>
         <div className="relative pb-[100%]">
           <img 
-            src={product.image} 
-            alt={product.name} 
+            src={
+              Array.isArray(product.images) && product.images.length > 0
+                ? product.images[0]
+                : product.image
+            }
+            alt={product.title}
             className="absolute h-full w-full object-cover"
           />
           {product.isFeatured && (
@@ -26,7 +35,7 @@ const ProductCard = ({ product }) => {
           <div>
             <Link to={`/product/${product._id}`}>
               <h3 className="font-bold text-lg hover:text-purple-700 transition">
-                {product.name}
+                {product.title}
               </h3>
             </Link>
             <p className="text-gray-500 text-sm capitalize">{product.category}</p>
@@ -41,9 +50,8 @@ const ProductCard = ({ product }) => {
           >
             Add to Cart
           </button>
-          
-          <span className={`text-sm ${product.stock > 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+          <span className={`text-sm ${totalStock > 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {totalStock > 0 ? `${totalStock} in stock` : 'Out of stock'}
           </span>
         </div>
       </div>

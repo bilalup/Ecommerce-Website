@@ -25,4 +25,5 @@ router.get('/checkAuth', verifyToken, CheckAuth);
 // check admin auth
 router.get('/checkAdminAuth', verifyAdminToken, CheckAuth);
 
+
 export default router;

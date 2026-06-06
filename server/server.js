@@ -5,6 +5,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth.route.js';
 import productRoutes from './routes/product.route.js';
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
 
 dotenv.config();
 

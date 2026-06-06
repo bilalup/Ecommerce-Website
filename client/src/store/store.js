@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import axios from "axios";
+import playSound from "../utils/sound";
 
 const serverApi = import.meta.env.VITE_SERVER_API;
 axios.defaults.withCredentials = true;
@@ -229,54 +230,98 @@ export const useCartStore = create(
       items: [],
       total: 0,
 
-      addToCart: product => {
-        const existingItem = get().items.find(item => item._id === product._id);
+      // ✅ FIXED ADD TO CART (supports quantity properly)
+      addToCart: (product) => {
+        const qty = Number(product.quantity || 1);
+
+        const existingItem = get().items.find((item) => {
+          return (
+            item._id === product._id &&
+            JSON.stringify(item.variant || {}) === JSON.stringify(product.variant || {})
+          );
+        });
+
         if (existingItem) {
-          set(state => ({
-            items: state.items.map(item =>
-              item._id === product._id
-                ? { ...item, quantity: item.quantity + 1 }
+          set((state) => ({
+            items: state.items.map((item) =>
+              item._id === product._id &&
+              JSON.stringify(item.variant || {}) === JSON.stringify(product.variant || {})
+                ? {
+                    ...item,
+                    quantity: item.quantity + qty,
+                  }
                 : item
-            )
+            ),
           }));
         } else {
-          set(state => ({
-            items: [...state.items, { ...product, quantity: 1 }]
+          set((state) => ({
+            items: [
+              ...state.items,
+              {
+                ...product,
+                quantity: qty,
+              },
+            ],
           }));
         }
+
+        playSound("addedToCart.wav");
         get().calculateTotal();
       },
 
-      removeFromCart: id => {
-        set(state => ({ items: state.items.filter(item => item._id !== id) }));
+      // ✅ REMOVE ITEM
+      removeFromCart: (id, variant = null) => {
+        set((state) => ({
+          items: state.items.filter((item) => {
+            if (!variant) return item._id !== id;
+
+            return !(
+              item._id === id &&
+              JSON.stringify(item.variant || {}) === JSON.stringify(variant)
+            );
+          }),
+        }));
+
         get().calculateTotal();
       },
 
-      updateQuantity: (id, quantity) => {
+      // ✅ UPDATE QUANTITY
+      updateQuantity: (id, quantity, variant = null) => {
         if (quantity <= 0) {
-          get().removeFromCart(id);
+          get().removeFromCart(id, variant);
           return;
         }
-        set(state => ({
-          items: state.items.map(item =>
-            item._id === id ? { ...item, quantity } : item
-          )
+
+        set((state) => ({
+          items: state.items.map((item) => {
+            if (!variant) {
+              return item._id === id ? { ...item, quantity } : item;
+            }
+
+            return item._id === id &&
+              JSON.stringify(item.variant || {}) === JSON.stringify(variant)
+              ? { ...item, quantity }
+              : item;
+          }),
         }));
+
         get().calculateTotal();
       },
 
+      // ✅ TOTAL CALCULATION FIXED
       calculateTotal: () => {
-        const total = get().items.reduce(
-          (sum, item) => sum + item.price * item.quantity,
-          0
-        );
+        const total = get().items.reduce((sum, item) => {
+          return sum + item.price * (item.quantity || 1);
+        }, 0);
+
         set({ total });
       },
 
-      clearCart: () => set({ items: [], total: 0 })
+      // ✅ CLEAR CART
+      clearCart: () => set({ items: [], total: 0 }),
     }),
     {
-      name: "cart-storage"
+      name: "cart-storage",
     }
   )
 );
