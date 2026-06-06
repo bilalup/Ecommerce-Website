@@ -50,11 +50,11 @@ Check out the live app 👉
 ```bash
 git clone https://github.com/bilalup/Ecommerce-Website.git
 cd Ecommerce-Website
-
+```
 2. Setup Environment Variables
 
 Create .env files in server and client.
-
+```bash
 server/.env
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
@@ -64,21 +64,21 @@ JWT_SECRET=my_secret
 CLOUDINARY_NAME=dbtmd2fzn
 CLOUDINARY_API_KEY=your_cloudonary_api_key
 CLOUDINARY_API_SECRET=your_cloudonary_api_secret
-
+```
 3. Install dependencies
 
 Backend
-
+```bash
 cd server
 npm install
 npm run dev
-
+```
 Frontend
-
+```bash
 cd client
 npm install
 npm start
-
+```
 🎯 Usage
 
 1. Open http://localhost:5173 in your browser.
@@ -107,4 +107,4 @@ Built and maintained by Bilal
 💻 GitHub: @bilalup
 
 ⭐ If you like this project, don’t forget to star the repo on GitHub!
-```
+
